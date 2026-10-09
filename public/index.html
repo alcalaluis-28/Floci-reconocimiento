@@ -11,68 +11,136 @@
   <div class="container is-max-desktop">
     <h1 class="title">Analizando archivos con AWS</h1>
 
-    <div class="box">
-      <form action="" id="uploadForm">
-        <div class="field">
-          <label class="label" for="imagen">Seleccione imagen</label>
-          <div class="control">
-            <input class="input" type="file" name="imagen" id="imagen" accept="image/*" required>
-          </div>
+ <div class="columns">
+      <!-- 1. SERVICIO REKOGNITION (IMÁGENES) -->
+      <div class="column is-6">
+        <div class="box">
+          <h2 class="subtitle has-text-weight-bold">AWS Rekognition</h2>
+          <form id="formImagen">
+            <div class="field">
+              <label class="label" for="imagen">Seleccione imagen</label>
+              <div class="control">
+                <input class="input" type="file" name="imagen" id="imagen" accept="image/*" required>
+              </div>
+            </div>
+            <button class="button is-primary mt-2" type="submit" id="btnImagen">Analizar Imagen</button>
+          </form>
         </div>
-        <button class="button is-primary mt-2" type="submit">Enviar</button>
-      </form>
-    </div>
 
-    <div class="box">
-      <h3 class="subtitle">Resultados de análisis</h3>
-      <ul id="listaEtiquetas" class="content"></ul>
+        <div class="box">
+          <h3 class="subtitle">Resultados de imagen</h3>
+          <ul id="listaEtiquetas" class="content"></ul>
+        </div>
+      </div>
+
+      <!-- 2. SERVICIO TEXTRACT (DOCUMENTOS PDF < 5 MB) -->
+      <div class="column is-6">
+        <div class="box">
+          <h2 class="subtitle has-text-weight-bold">AWS Textract</h2>
+          <form id="formDocumento">
+            <div class="field">
+              <label class="label" for="documento">Seleccione archivo PDF (&lt; 5 MB)</label>
+              <div class="control">
+                <input class="input" type="file" name="documento" id="documento" accept=".pdf,application/pdf" required>
+              </div>
+            </div>
+            <button class="button is-info mt-2" type="submit" id="btnDocumento">Extraer Texto</button>
+          </form>
+        </div>
+
+        <div class="box">
+          <h3 class="subtitle">Resultados de documento</h3>
+          <ul id="listaDocumento" class="content"></ul>
+        </div>
+      </div>
     </div>
   </div>
 
   <script>
-    const form = document.getElementById("uploadForm")
-    const listaEtiquetas = document.getElementById("listaEtiquetas")
+    // --- LÓGICA DE REKOGNITION ---
+    const formImagen = document.getElementById("formImagen");
+    const listaEtiquetas = document.getElementById("listaEtiquetas");
+    const btnImagen = document.getElementById("btnImagen");
 
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault() //Detener el envio
+    formImagen.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(formImagen);
 
-      //FormData = contenedor de datos
-      const formData = new FormData(form)
+      btnImagen.classList.add("is-loading");
+      listaEtiquetas.innerHTML = `<li>Analizando imagen con AWS Rekognition...</li>`;
 
-      listaEtiquetas.innerHTML = `<li>Analizando imagen con AWS...</li>`
-
-      //Enviar los datos por el API...
       try {
         const response = await fetch('/api/analizar', {
           method: 'POST',
           body: formData
-        })
-        //El servicio de AWS empezará a iniciar la solución...
-
-        const data = await response.json()
+        });
+        const data = await response.json();
 
         if (data.success) {
-          listaEtiquetas.innerHTML = ''
+          listaEtiquetas.innerHTML = '';
           data.labels.forEach(label => {
-            const li = document.createElement("li")
-            li.innerHTML = `Imagen: ${label.Name} - confianza: ${label.Confidence}`
-            listaEtiquetas.appendChild(li)
-          })
+            const li = document.createElement("li");
+            li.innerHTML = `<strong>Etiqueta:</strong> ${label.Name} — <strong>Confianza:</strong> ${label.Confidence}%`;
+            listaEtiquetas.appendChild(li);
+          });
         } else {
-          //CUIDADO: no se deben exponer TODOS LOS ERRORES
-          //¿Cómo se manejan los errores en backend?
-          listaEtiquetas.innerHTML = `
-            <li>${data.error}</li>
-            <li>${data.details}</li>
-            <li>${data.code}</li>
-          `
+          listaEtiquetas.innerHTML = `<li class="has-text-danger">${data.error || 'Error'}</li>`;
         }
-
       } catch (error) {
-        console.error(error)
-        listaEtiquetas.innerHTML = `<li>Error de conexión</li>`
+        console.error(error);
+        listaEtiquetas.innerHTML = `<li class="has-text-danger">Error de conexión</li>`;
+      } finally {
+        btnImagen.classList.remove("is-loading");
       }
-    })
+    });
+
+    // --- LÓGICA DE TEXTRACT ---
+    const formDocumento = document.getElementById("formDocumento");
+    const inputDocumento = document.getElementById("documento");
+    const listaDocumento = document.getElementById("listaDocumento");
+    const btnDocumento = document.getElementById("btnDocumento");
+
+    formDocumento.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const archivo = inputDocumento.files[0];
+      if (archivo && archivo.size > 5 * 1024 * 1024) {
+        alert("El archivo supera el tamaño máximo de 5 MB permitido.");
+        return;
+      }
+
+      const formData = new FormData(formDocumento);
+      btnDocumento.classList.add("is-loading");
+      listaDocumento.innerHTML = `<li>Extrayendo texto con AWS Textract...</li>`;
+
+      try {
+        const response = await fetch('/api/analizar-documento', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+          listaDocumento.innerHTML = '';
+          if (data.blocks && data.blocks.length > 0) {
+            data.blocks.forEach(bloque => {
+              const li = document.createElement("li");
+              li.innerHTML = `<strong>Texto:</strong> ${bloque.text} — <strong>Confianza:</strong> ${bloque.confidence}%`;
+              listaDocumento.appendChild(li);
+            });
+          } else {
+            listaDocumento.innerHTML = `<li>No se detectó texto en el documento.</li>`;
+          }
+        } else {
+          listaDocumento.innerHTML = `<li class="has-text-danger">${data.error || 'Error'}</li>`;
+        }
+      } catch (error) {
+        console.error(error);
+        listaDocumento.innerHTML = `<li class="has-text-danger">Error de conexión</li>`;
+      } finally {
+        btnDocumento.classList.remove("is-loading");
+      }
+    });
   </script>
 </body>
 </html>

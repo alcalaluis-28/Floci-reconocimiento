@@ -4,21 +4,29 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
+<!-- CDN de Bulma -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css">
 </head>
-<body>
-  <h1>Analizando archivos con AWS</h1>
+<body class="section">
+  <div class="container is-max-desktop">
+    <h1 class="title">Analizando archivos con AWS</h1>
 
-  <form action="" id="uploadForm">
-    <div>
-      <label for="imagen">Seleccione imagen</label>
-      <input type="file" name="imagen" id="imagen" accept="image/*" required>
+    <div class="box">
+      <form action="" id="uploadForm">
+        <div class="field">
+          <label class="label" for="imagen">Seleccione imagen</label>
+          <div class="control">
+            <input class="input" type="file" name="imagen" id="imagen" accept="image/*" required>
+          </div>
+        </div>
+        <button class="button is-primary mt-2" type="submit">Enviar</button>
+      </form>
     </div>
-    <button type="submit">Enviar</button>
-  </form>
 
-  <div>
-    <h3>Resultados de análisis</h3>
-    <ul id="listaEtiquetas"></ul>
+    <div class="box">
+      <h3 class="subtitle">Resultados de análisis</h3>
+      <ul id="listaEtiquetas" class="content"></ul>
+    </div>
   </div>
 
   <script>
